@@ -42,6 +42,12 @@ export function openDatabase(dbPath = process.env.DB_PATH || DEFAULT_PATH) {
   if (dbPath !== ':memory:') mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
   db.exec('PRAGMA foreign_keys = ON;');
+  db.exec('PRAGMA busy_timeout = 5000;');
+  db.exec('PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
+  const columns = new Set(db.prepare('PRAGMA table_info(runs)').all().map((c) => c.name));
+  for (const column of ['benchmark_json', 'case_ids_json', 'case_snapshot_json']) {
+    if (!columns.has(column)) db.exec(`ALTER TABLE runs ADD COLUMN ${column} TEXT`);
+  }
   return db;
 }
