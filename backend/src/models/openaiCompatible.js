@@ -20,9 +20,10 @@ export function openaiCompatibleModels() {
     name: model,
     provider: 'openai-compatible',
     description: `${label} endpoint at ${baseUrl}.`,
-    async generate(prompt) {
+    async generate(prompt, { signal } = {}) {
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
+        signal,
         headers: {
           'Content-Type': 'application/json',
           ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
@@ -30,10 +31,14 @@ export function openaiCompatibleModels() {
         body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }] }),
       });
       if (!res.ok) {
-        throw new Error(`${label} returned ${res.status}: ${(await res.text()).slice(0, 300)}`);
+        throw new Error(`${label} returned HTTP ${res.status}. Check the server's provider configuration and account limits.`);
       }
       const data = await res.json();
       const choice = data.choices?.[0];
+      if (!choice?.message || (typeof choice.message.content !== 'string' && !choice.message.refusal)) {
+        throw new Error(`${label} returned an invalid chat completion.`);
+      }
+      if (choice.finish_reason === 'length') throw new Error(`${label} truncated the answer. Increase the provider's output limit and retry.`);
       return {
         text: choice?.message?.content ?? '',
         refused: Boolean(choice?.message?.refusal) || choice?.finish_reason === 'content_filter',
