@@ -11,7 +11,8 @@
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env index.js",
     "start": "node --env-file-if-exists=.env index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "demo": "node --env-file-if-exists=.env scripts/demo.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
