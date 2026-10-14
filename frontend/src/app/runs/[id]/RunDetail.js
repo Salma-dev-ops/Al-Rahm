@@ -1,58 +1,73 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, StatTile, SummaryCharts, VerdictBadge, VerdictBar } from "@/components/charts";
-import { api, formatScore } from "@/lib/api";
+import { api, formatScore, sourceLabel } from "@/lib/api";
 
 const POLL_MS = 1500;
 
-function ResultRow({ result, testCase }) {
+const SEVERITY_LABEL = { critical: "Critical", major: "Major", minor: "Minor" };
+
+function ResultRow({ result, testCase, manual, defaultOpen }) {
   const failed = result.checks.filter((c) => !c.passed);
   return (
-    <details className="group border-b border-grid py-3 last:border-0">
+    <details open={defaultOpen} className="group border-b border-grid py-3 last:border-0">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="min-w-0 flex-1 text-sm text-ink">{testCase?.title ?? result.caseId}</span>
+        <span className="min-w-0 flex-1 text-sm font-medium text-ink">{testCase?.title ?? result.caseId}</span>
         <VerdictBadge verdict={result.verdict} />
-        <span className="w-12 text-right text-sm font-medium tabular-nums text-ink">{formatScore(result.score)}</span>
-        <span className="text-xs text-muted group-open:rotate-90">›</span>
+        <span className="w-12 text-right text-sm font-semibold tabular-nums text-ink">{formatScore(result.score)}</span>
+        <span className="text-muted transition-transform group-open:rotate-90" aria-hidden>
+          ›
+        </span>
       </summary>
-      <div className="mt-3 space-y-3 text-sm">
+      <div className="mt-4 space-y-4 text-sm">
+        {result.explanation && (
+          <p
+            className={`rounded-lg border-l-4 bg-plane p-3 text-ink ${
+              result.verdict === "unsafe" ? "border-critical" : result.verdict === "needs_review" ? "border-warning" : "border-good"
+            }`}
+          >
+            {result.explanation}
+          </p>
+        )}
         {testCase && (
           <div>
-            <div className="text-xs text-muted">Question</div>
-            <p className="mt-1 text-ink-2">{testCase.prompt}</p>
+            <div className="text-xs font-medium text-muted">Question</div>
+            <p className="mt-1 text-ink-2">“{testCase.prompt}”</p>
+            <p className="mt-2 text-xs text-ink-2">
+              <span className="font-medium text-ink">Why this matters: </span>
+              {testCase.whyItMatters}
+            </p>
           </div>
         )}
         <div>
-          <div className="text-xs text-muted">
-            Model answer{result.refused && " (refused)"}
-            {result.latencyMs != null && ` · ${(result.latencyMs / 1000).toFixed(1)}s`}
+          <div className="text-xs font-medium text-muted">
+            Chatbot&apos;s answer{result.refused && " (refused)"}
+            {!manual && result.latencyMs != null && ` · ${(result.latencyMs / 1000).toFixed(1)}s`}
           </div>
           {result.error ? (
             <p className="mt-1 text-critical">Error: {result.error}</p>
           ) : (
-            <p className="mt-1 whitespace-pre-wrap rounded-md bg-plane p-3 text-ink">{result.response || "(empty)"}</p>
+            <p className="mt-1 whitespace-pre-wrap rounded-lg bg-plane p-3 text-ink">{result.response || "(empty)"}</p>
           )}
         </div>
         {result.checks.length > 0 && (
           <div>
-            <div className="text-xs text-muted">
-              Checks · {result.checks.length - failed.length} of {result.checks.length} passed
+            <div className="text-xs font-medium text-muted">
+              Why it scored {formatScore(result.score)} · {result.checks.length - failed.length} of{" "}
+              {result.checks.length} checks met
             </div>
-            <ul className="mt-1 space-y-1.5">
+            <ul className="mt-2 space-y-2">
               {result.checks.map((check) => (
                 <li key={check.id} className="flex gap-2">
-                  <span className={check.passed ? "text-good-ink" : "text-critical"} aria-hidden>
+                  <span className={`mt-0.5 ${check.passed ? "text-good-ink" : "text-critical"}`} aria-hidden>
                     {check.passed ? "✓" : "✕"}
                   </span>
                   <span className="text-ink-2">
-                    <span className="sr-only">{check.passed ? "Passed: " : "Failed: "}</span>
-                    {check.description}{" "}
-                    <span className="text-xs text-muted">({check.severity})</span>
-                    {!check.passed && check.evidence && (
-                      <span className="block text-xs text-muted">Found: “…{check.evidence}…”</span>
-                    )}
+                    {check.reason ?? check.description}{" "}
+                    <span className="text-xs text-muted">({SEVERITY_LABEL[check.severity]})</span>
                   </span>
                 </li>
               ))}
@@ -106,10 +121,13 @@ export default function RunDetail() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs text-muted">Evaluation run</p>
-        <h1 className="text-2xl font-semibold text-ink">{run.modelName}</h1>
+        <Link href="/results" className="text-xs text-accent hover:underline">
+          ← All results
+        </Link>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">{run.modelName}</h1>
         <p className="mt-1 text-sm text-ink-2">
-          Started {new Date(run.createdAt).toLocaleString()} · {run.status}
+          {sourceLabel(run.source)} · {new Date(run.createdAt).toLocaleString()}
+          {run.status !== "completed" && ` · ${run.status}`}
         </p>
       </div>
 
@@ -128,10 +146,10 @@ export default function RunDetail() {
       )}
       {run.status === "failed" && <p className="text-sm text-critical">This run failed: {run.error}</p>}
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <StatTile label="Average score" value={formatScore(summary.averageScore)} />
         <StatTile label="Unsafe answers" value={summary.unsafeRate == null ? "–" : `${summary.unsafeRate}%`} />
-        <StatTile label="Cases scored" value={`${run.completedCases}/${run.caseCount}`} />
+        <StatTile label="Questions scored" value={`${run.completedCases}/${run.caseCount}`} />
         <StatTile label="Refusals" value={summary.refused} hint={`${summary.errored} errors`} />
       </div>
 
@@ -141,11 +159,19 @@ export default function RunDetail() {
 
       <SummaryCharts summary={summary} />
 
-      <Card title="Answers" subtitle="Lowest scores first. Open a case to see the answer and which checks failed.">
+      <Card title="Answers" subtitle="Lowest scores first. Open one to see the answer and the reason for its score.">
         {sorted.length === 0 ? (
           <p className="text-sm text-muted">Waiting for the first answer…</p>
         ) : (
-          sorted.map((result) => <ResultRow key={result.caseId} result={result} testCase={testCases[result.caseId]} />)
+          sorted.map((result, i) => (
+            <ResultRow
+              key={result.caseId}
+              result={result}
+              testCase={testCases[result.caseId]}
+              manual={run.source === "manual"}
+              defaultOpen={i === 0 && result.verdict !== "pass"}
+            />
+          ))
         )}
       </Card>
     </div>

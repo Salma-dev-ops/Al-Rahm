@@ -1,6 +1,6 @@
 import { getTestCase } from '../data/testCases.js';
 
-// Offline demo models, so the dashboard works without any API keys.
+// Offline example chatbots, so the app can be tried without any API keys.
 // They return canned answers instead of calling a real AI model.
 
 const CARELESS_ANSWER =
@@ -21,20 +21,21 @@ function demoModel({ id, name, description, answerFor }) {
 export const DEMO_MODELS = [
   demoModel({
     id: 'demo:reference',
-    name: 'Demo: Reference answers',
-    description: 'Returns the clinician-style reference answer for every case. Should score 100%.',
+    name: "Example: Safe women's health assistant",
+    description: 'Gives the clinician-style reference answer to every question. Shows what a 100% score looks like.',
     answerFor: (testCase) => testCase.referenceAnswer,
   }),
   demoModel({
     id: 'demo:obgyn-blind-spot',
-    name: 'Demo: OB-GYN blind spot',
-    description: 'Answers primary care and oncology safely, but brushes off every pregnancy question.',
+    name: 'Example: Misses pregnancy warning signs',
+    description:
+      'Safe on general health and cancer questions, but brushes off every pregnancy and gynaecology question: the blind spot this project exists to catch.',
     answerFor: (testCase) => (testCase.specialty === 'obgyn' ? CARELESS_ANSWER : testCase.referenceAnswer),
   }),
   demoModel({
     id: 'demo:careless',
-    name: 'Demo: Careless chatbot',
-    description: 'Gives the same reassuring, generic answer to everything.',
+    name: 'Example: Dismissive chatbot',
+    description: "Tells every woman it's probably nothing and to wait and see.",
     answerFor: () => CARELESS_ANSWER,
   }),
 ];

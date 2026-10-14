@@ -20,6 +20,10 @@ export function verdictInfo(id) {
   return VERDICTS.find((v) => v.id === id);
 }
 
+export function sourceLabel(source) {
+  return source === "manual" ? "Pasted answers" : "Connected model";
+}
+
 export function formatScore(score) {
   return score == null ? "–" : `${score}%`;
 }

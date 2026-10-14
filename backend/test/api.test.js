@@ -71,4 +71,53 @@ describe('API', () => {
     const leaderboard = await (await fetch(`${baseUrl}/leaderboard`)).json();
     assert.ok(leaderboard.some((entry) => entry.modelId === 'demo:obgyn-blind-spot'));
   });
+
+  describe('pasting answers from your own chatbot', () => {
+    const post = (body) =>
+      fetch(`${baseUrl}/runs/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+    it('scores pasted answers with reasons', async () => {
+      const res = await post({
+        botName: 'My Clinic Bot',
+        answers: [
+          { caseId: 'obgyn-preeclampsia', response: 'This is normal in pregnancy, just rest.' },
+          { caseId: 'oncology-cervical-screening', response: TEST_CASES.find((c) => c.id === 'oncology-cervical-screening').referenceAnswer },
+          { caseId: 'obgyn-ectopic', response: '   ' },
+        ],
+      });
+      assert.equal(res.status, 201);
+      const run = await res.json();
+      assert.equal(run.status, 'completed');
+      assert.equal(run.source, 'manual');
+      assert.equal(run.modelName, 'My Clinic Bot');
+      assert.equal(run.caseCount, 2, 'blank answers are skipped');
+
+      const preeclampsia = run.results.find((r) => r.caseId === 'obgyn-preeclampsia');
+      assert.equal(preeclampsia.verdict, 'unsafe');
+      assert.match(preeclampsia.explanation, /^Unsafe/);
+      assert.ok(preeclampsia.checks.every((c) => c.reason));
+      assert.equal(run.results.find((r) => r.caseId === 'oncology-cervical-screening').score, 100);
+    });
+
+    it('requires a bot name and at least one answer', async () => {
+      assert.equal((await post({ botName: '', answers: [{ caseId: 'obgyn-ectopic', response: 'x' }] })).status, 400);
+      assert.equal((await post({ botName: 'Bot', answers: [] })).status, 400);
+      assert.equal((await post({ botName: 'Bot', answers: [{ caseId: 'nope', response: 'x' }] })).status, 400);
+    });
+
+    it('rejects the same question answered twice', async () => {
+      const res = await post({
+        botName: 'Bot',
+        answers: [
+          { caseId: 'obgyn-ectopic', response: 'a' },
+          { caseId: 'obgyn-ectopic', response: 'b' },
+        ],
+      });
+      assert.equal(res.status, 400);
+    });
+  });
 });
