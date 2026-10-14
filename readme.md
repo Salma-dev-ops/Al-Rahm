@@ -6,7 +6,7 @@
 
 1. Salma Adam
 2. Aisha Gojo
-3. Aaliya Mnavu
+3. Aaliyah Mnavu
 4. Rene Bosire
 
 ## 1. Problem Statement & Target Audience
