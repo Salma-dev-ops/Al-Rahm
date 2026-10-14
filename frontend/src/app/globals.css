@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* Design tokens. Chart/ink values come from the dataviz reference palette; the brand
+   accent (plum) is used for UI only, never for data. */
+:root {
+  color-scheme: light;
+  --plane: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --accent: #7a2e5c;
+  --accent-ink: #ffffff;
+  --series: #2a78d6;
+  --series-track: #cde2fb;
+  --good: #0ca30c;
+  --good-ink: #006300;
+  --warning: #fab219;
+  --critical: #d03b3b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #d07aac;
+    --accent-ink: #0b0b0b;
+    --series: #3987e5;
+    --series-track: #184f95;
+    --good-ink: #0ca30c;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0d0d0d;
+  --surface: #1a1a19;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --accent: #d07aac;
+  --accent-ink: #0b0b0b;
+  --series: #3987e5;
+  --series-track: #184f95;
+  --good-ink: #0ca30c;
+}
+
+@theme inline {
+  --color-plane: var(--plane);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-grid: var(--grid);
+  --color-axis: var(--axis);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-series: var(--series);
+  --color-series-track: var(--series-track);
+  --color-good: var(--good);
+  --color-good-ink: var(--good-ink);
+  --color-warning: var(--warning);
+  --color-critical: var(--critical);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--plane);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
