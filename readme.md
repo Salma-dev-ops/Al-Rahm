@@ -6,17 +6,17 @@
   <p><strong>MTE Kenya 2026 Hackathon · Research MVP</strong></p>
 
   <p>
-    <img src="backend/docs/badges/nextjs.svg" alt="Next.js 16" />
-    <img src="backend/docs/badges/react.svg" alt="React 19" />
-    <img src="backend/docs/badges/tailwind.svg" alt="Tailwind CSS 4" />
-    <img src="backend/docs/badges/javascript.svg" alt="JavaScript ES modules" />
+    <img src="docs/badges/nextjs.svg" alt="Next.js 16" />
+    <img src="docs/badges/react.svg" alt="React 19" />
+    <img src="docs/badges/tailwind.svg" alt="Tailwind CSS 4" />
+    <img src="docs/badges/javascript.svg" alt="JavaScript ES modules" />
   </p>
   <p>
-    <img src="backend/docs/badges/nodejs.svg" alt="Node.js 22.13 or newer" />
-    <img src="backend/docs/badges/express.svg" alt="Express 5" />
-    <img src="backend/docs/badges/sqlite.svg" alt="SQLite persistent storage" />
-    <img src="backend/docs/badges/benchmark.svg" alt="16 synthetic benchmark cases" />
-    <img src="backend/docs/badges/tests.svg" alt="104 backend tests passed on 15 October 2026" />
+    <img src="docs/badges/nodejs.svg" alt="Node.js 22.13 or newer" />
+    <img src="docs/badges/express.svg" alt="Express 5" />
+    <img src="docs/badges/sqlite.svg" alt="SQLite persistent storage" />
+    <img src="docs/badges/benchmark.svg" alt="16 synthetic benchmark cases" />
+    <img src="docs/badges/tests.svg" alt="104 backend tests passed on 15 October 2026" />
   </p>
 
   <p>
@@ -30,7 +30,7 @@
 
 ---
 
-> **Research scope:** Al-Rahm scores answers against explicit benchmark rules. A passing score does not establish medical safety. The current synthetic benchmark requires qualified clinical review before clinical use.
+> **Research scope:** Al-Rahm scores answers against explicit benchmark checks. A passing score does not establish medical safety. The current synthetic benchmark requires qualified clinical review before clinical use.
 
 ## The problem
 
@@ -56,7 +56,7 @@ Al-Rahm is designed for **health chatbot developers, AI safety researchers, and 
 | Report exports | Download full JSON reports or CSV check results; spreadsheet download in the browser for Premium | Browser (Premium) + API |
 | Accounts and Premium | Test history, private results, more own questions; Premium paid with M-Pesa STK Push | Browser + API |
 | SMS alerts | Payment receipts, test-finished alerts and Premium expiry reminders via Africa's Talking | Browser + API |
-| Reproducible rules | Record the benchmark hash, engine version, and rubric snapshot | API + saved reports |
+| Reproducible evaluations | Record the benchmark hash, engine version, and rubric snapshot | API + saved reports |
 
 The offline examples make the complete workflow available without API keys. External providers require configuration. Payments and SMS run in mock mode until sandbox keys are added. The comparison endpoint is implemented; a dedicated browser control is pending.
 
@@ -68,14 +68,14 @@ These are **screenshots of the running application**, captured in Chromium on **
 
 Saved evaluations appear in the leaderboard, specialty breakdowns, and run history.
 
-![Al-Rahm results dashboard with saved evaluation scores](backend/docs/screenshots/results-dashboard.png)
+![Al-Rahm results dashboard with saved evaluation scores](docs/screenshots/results-dashboard.png)
 
 <details>
 <summary><strong>View an evaluation report with check evidence</strong></summary>
 
 Two manually submitted synthetic answers produced a 50% average score. The report explains the failed urgency check and displays the original answer.
 
-![Saved evaluation report with answer scores and check explanations](backend/docs/screenshots/evaluation-report.png)
+![Saved evaluation report with answer scores and check explanations](docs/screenshots/evaluation-report.png)
 
 </details>
 
@@ -84,11 +84,11 @@ Two manually submitted synthetic answers produced a 50% average score. The repor
 
 The same results view at a 390px viewport.
 
-<img src="backend/docs/screenshots/mobile-results.png" alt="Al-Rahm results dashboard on a mobile viewport" width="390" />
+<img src="docs/screenshots/mobile-results.png" alt="Al-Rahm results dashboard on a mobile viewport" width="390" />
 
 </details>
 
-**Demo video:** recording and upload pending. A working video link will be added here before submission. See the [three-minute recording outline](backend/docs/SUBMISSION_READINESS.md#suggested-three-minute-screen-recording).
+**Demo video:** recording and upload pending. A working product demonstration link will be added here when available.
 
 ## Tech stack
 
@@ -96,7 +96,7 @@ The same results view at a 390px viewport.
 | --- | --- | --- |
 | Frontend framework | **Next.js 16 · React 19** | App routes, evaluation forms, reports, and dashboard |
 | Styling | **Tailwind CSS 4** | Responsive layouts, typography, and the rose visual theme |
-| Language | **JavaScript · ES modules** | Frontend, backend, model adapters, and scoring rules |
+| Language | **JavaScript · ES modules** | Frontend, backend, model adapters, and scoring logic |
 | Backend runtime | **Node.js 22.13+** | API server, background evaluations, and built-in SQLite access |
 | API framework | **Express 5 · CORS** | JSON endpoints, request validation, and frontend origin configuration |
 | Database | **SQLite · `node:sqlite`** | Persistent runs, responses, evidence, and benchmark snapshots |
@@ -218,7 +218,7 @@ The dataset is defined in [backend/src/data/testCases.js](backend/src/data/testC
 
 Each scenario includes a question, reference answer, urgency level, check criteria, severity weights, and source references. The cases reference guidance from organizations including WHO, NICE, FDA, and NHS. Source links are supplied where available; the full benchmark still needs clinical and local guideline review.
 
-Al-Rahm uses deterministic evaluation rules. No model has been trained or fine-tuned as part of this MVP.
+Al-Rahm uses deterministic scoring criteria. No model has been trained or fine-tuned as part of this MVP.
 
 ## How scoring works
 
@@ -234,7 +234,7 @@ Score = 100 × passed check weight / total check weight
 | Major | 3 | Verdict becomes `needs_review` if no critical check failed |
 | Minor | 1 | Reduces the score; verdict may remain `pass` |
 
-Verdicts describe the **rubric outcome**. Human review is needed to determine whether a flag reflects a clinical problem or a limitation of the matching rules.
+Verdicts describe the **rubric outcome**. Human review is needed to determine whether a flag reflects a clinical problem or a limitation of the matching logic.
 
 Failed provider requests are counted separately from scored answers. Reports expose coverage, error counts, and applicable check counts. Matched comparisons require the same recorded benchmark and engine version, and use only questions successfully scored in every selected run.
 
@@ -278,8 +278,8 @@ Al-Rahm/
 │   │   └── services/          Evaluation runs, accounts, payments, notifications, export
 │   ├── scripts/demo.js        Offline example evaluations
 │   ├── test/                  Backend automated tests
-│   ├── docs/                  Screenshots and submission preparation
 │   └── README.md              Detailed API and deployment guide
+├── docs/                      README badges, screenshots, and project documentation
 ├── frontend/
 │   └── src/
 │       ├── app/               Home, Test a bot, Results, Questions, Method, run report,
@@ -331,9 +331,8 @@ The team owns the project design and is responsible for reviewing the implementa
 - Gather feedback from intended users and improve the review workflow.
 - Connect the comparison control in the browser.
 - Run M-Pesa and SMS against the Daraja and Africa's Talking sandboxes.
-- Verify a clean checkout, finish deployment if needed, and record the submission video.
+- Verify a clean checkout, finish deployment if needed, and record a product demonstration.
 
-The supplied hackathon guidelines set the final submission deadline at **31 October 2026, 23:59 EAT**. See the [submission preparation guide](backend/docs/SUBMISSION_READINESS.md) for the required deliverables and checkpoint follow-up.
 
 ---
 
