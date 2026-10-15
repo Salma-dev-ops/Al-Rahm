@@ -86,6 +86,10 @@ const SCHEMA = `
 
 // Columns added after the first release. Existing databases get them on startup.
 const ADDED_COLUMNS = [
+  // Benchmark snapshot recorded with each run, so old reports stay reproducible.
+  ['runs', 'benchmark_json', 'TEXT'],
+  ['runs', 'case_ids_json', 'TEXT'],
+  ['runs', 'case_snapshot_json', 'TEXT'],
   ['runs', 'user_id', 'INTEGER REFERENCES users(id)'],
   ['runs', 'private', 'INTEGER NOT NULL DEFAULT 0'],
   ['results', 'kind', "TEXT NOT NULL DEFAULT 'standard'"], // standard | custom
@@ -105,6 +109,8 @@ export function openDatabase(dbPath = process.env.DB_PATH || DEFAULT_PATH) {
   if (dbPath !== ':memory:') mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
   db.exec('PRAGMA foreign_keys = ON;');
+  db.exec('PRAGMA busy_timeout = 5000;');
+  db.exec('PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
   migrate(db);
   return db;

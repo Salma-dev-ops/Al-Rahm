@@ -1,14 +1,17 @@
-import { ValidationError } from '../services/users.js';
+import { AppError } from '../errors.js';
 
-export function bearerToken(req) {
-  const header = req.get('authorization') ?? '';
-  return header.startsWith('Bearer ') ? header.slice(7) : null;
+// Login sessions use their own header, so they never clash with the optional
+// API_AUTH_TOKEN integration token, which uses Authorization: Bearer.
+export const SESSION_HEADER = 'x-session-token';
+
+export function sessionToken(req) {
+  return req.get(SESSION_HEADER) || null;
 }
 
 /** Attaches req.user when a valid session token is sent; anonymous requests continue. */
 export function authenticate(users) {
   return (req, res, next) => {
-    req.user = users.userForToken(bearerToken(req));
+    req.user = users.userForToken(sessionToken(req));
     next();
   };
 }
@@ -38,12 +41,12 @@ export function rateLimit({ windowMs, max, key }) {
   };
 }
 
-/** Turns validation errors into 400s; anything else becomes a 500 without leaking details. */
+/** Turns AppErrors into their status code; anything else becomes a 500 without leaking details. */
 export function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
-  if (err instanceof ValidationError) return res.status(400).json({ error: err.message });
-  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'That request is too large.' });
-  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON.' });
-  console.error(err);
-  res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'JSON body exceeds 1 MB.', code: 'BODY_TOO_LARGE' });
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON body.', code: 'INVALID_JSON' });
+  if (err instanceof AppError) return res.status(err.status).json({ error: err.message, code: err.code });
+  console.error('API error:', err.message);
+  res.status(500).json({ error: 'An internal error occurred.', code: 'INTERNAL_ERROR' });
 }

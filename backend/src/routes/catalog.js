@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { CUSTOM_QUESTION_LIMIT, PREMIUM } from '../config.js';
 import { PACKS } from '../data/packs.js';
 import { ERROR_CATEGORIES, SEVERITY_WEIGHTS, SPECIALTIES } from '../data/taxonomy.js';
+import { BENCHMARK } from '../data/benchmark.js';
 import { getTestCase, renderTestCase, TEST_CASES } from '../data/testCases.js';
+import { AppError } from '../errors.js';
+import { selectCases } from '../services/evaluation.js';
 import { mpesaMode } from '../integrations/mpesa.js';
 import { smsMode } from '../integrations/sms.js';
 import { listModels } from '../models/index.js';
@@ -16,7 +19,7 @@ function publicCase(testCase) {
 export function catalogRoutes() {
   const router = Router();
 
-  router.get('/health', (req, res) => res.json({ ok: true }));
+  router.get('/benchmark', (req, res) => res.json(BENCHMARK));
 
   router.get('/taxonomy', (req, res) => {
     res.json({
@@ -24,19 +27,18 @@ export function catalogRoutes() {
       errorCategories: ERROR_CATEGORIES,
       severityWeights: SEVERITY_WEIGHTS,
       totalQuestions: TEST_CASES.length,
+      benchmark: BENCHMARK,
     });
   });
 
   // The rubric is public on purpose, so anyone can see how answers are judged.
   router.get('/test-cases', (req, res) => {
-    const { specialty } = req.query;
-    const cases = specialty ? TEST_CASES.filter((c) => c.specialty === specialty) : TEST_CASES;
-    res.json(cases.map(publicCase));
+    res.json(selectCases({ specialty: req.query.specialty }).map(publicCase));
   });
 
   router.get('/test-cases/:id', (req, res) => {
     const testCase = getTestCase(req.params.id);
-    if (!testCase) return res.status(404).json({ error: 'Question not found.' });
+    if (!testCase) throw new AppError('Test case not found.', 404, 'NOT_FOUND');
     res.json(publicCase(testCase));
   });
 

@@ -20,9 +20,11 @@ export function setToken(token) {
   }
 }
 
+// Sent in its own header so it never clashes with the backend's optional API_AUTH_TOKEN
+// (which uses Authorization: Bearer for server-to-server integrations).
 function authHeaders() {
   const token = typeof window === "undefined" ? null : getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token ? { "X-Session-Token": token } : {};
 }
 
 export async function api(path, options = {}) {

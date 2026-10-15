@@ -17,7 +17,7 @@ async function startServer(options) {
   const call = async (method, path, { body, token } = {}) => {
     const res = await fetch(`${base}${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Session-Token': token } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await res.text();
@@ -172,7 +172,7 @@ describe('accounts, privacy and exports', () => {
   it('keeps private tests to Premium users, hidden from everyone else', async () => {
     const free = await ctx.signup();
     const body = { botName: 'Secret bot', private: true, answers: [{ caseId: 'obgyn-ectopic', response: 'Go to hospital immediately.' }] };
-    assert.equal((await ctx.call('POST', '/runs/manual', { body, token: free.token })).status, 400);
+    assert.equal((await ctx.call('POST', '/runs/manual', { body, token: free.token })).status, 403);
 
     const premium = await ctx.signup();
     ctx.users.extendPremium(premium.user.id, 30);

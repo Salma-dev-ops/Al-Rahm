@@ -28,12 +28,20 @@ export function paymentRoutes({ payments }) {
     res.json(payment);
   });
 
-  // Safaricom calls this when the customer approves or cancels. The URL contains a secret
-  // (MPESA_CALLBACK_SECRET) because Daraja callbacks are not signed. Always answer 200 with
-  // ResultCode 0 so Safaricom does not keep retrying.
+  return router;
+}
+
+/**
+ * Safaricom calls this when the customer approves or cancels. It is mounted before the optional
+ * API token check, because Safaricom cannot send that token. The URL contains a secret
+ * (MPESA_CALLBACK_SECRET) because Daraja callbacks are not signed. Always answer 200 with
+ * ResultCode 0 so Safaricom does not keep retrying.
+ */
+export function mpesaCallbackRoute({ payments }) {
+  const router = Router();
   router.post('/payments/mpesa/callback/:secret', async (req, res) => {
     if (!sameSecret(req.params.secret, process.env.MPESA_CALLBACK_SECRET)) {
-      return res.status(404).json({ error: 'Not found.' });
+      return res.status(404).json({ error: 'Endpoint not found.', code: 'NOT_FOUND' });
     }
     try {
       await payments.handleCallback(req.body);
@@ -42,6 +50,5 @@ export function paymentRoutes({ payments }) {
     }
     res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
   });
-
   return router;
 }

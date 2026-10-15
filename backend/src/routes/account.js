@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { publicUser } from '../services/users.js';
-import { bearerToken, rateLimit, requireUser } from './middleware.js';
+import { rateLimit, requireUser, sessionToken } from './middleware.js';
 
 export function accountRoutes({ users, evaluations, notifications, payments }) {
   const router = Router();
@@ -25,7 +25,7 @@ export function accountRoutes({ users, evaluations, notifications, payments }) {
   });
 
   router.post('/auth/logout', (req, res) => {
-    users.logout(bearerToken(req));
+    users.logout(sessionToken(req));
     res.status(204).end();
   });
 

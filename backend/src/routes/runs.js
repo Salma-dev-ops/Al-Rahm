@@ -1,16 +1,27 @@
 import { Router } from 'express';
+import { BENCHMARK } from '../data/benchmark.js';
 import { CUSTOM_QUESTION_LIMIT } from '../config.js';
 import { getPack } from '../data/packs.js';
-import { SPECIALTIES } from '../data/taxonomy.js';
 import { getTestCase, TEST_CASES } from '../data/testCases.js';
+import { AppError } from '../errors.js';
 import { getModel } from '../models/index.js';
-import { isPremium, ValidationError } from '../services/users.js';
+import { scoreResponse } from '../scoring/rubric.js';
+import { exportCsv, exportSummaryCsv } from '../services/export.js';
+import { isPremium } from '../services/users.js';
 import { requireUser } from './middleware.js';
 
-const MAX_ANSWER_LENGTH = 20000;
 const MAX_QUESTION_LENGTH = 2000;
 
-const filled = (value) => typeof value === 'string' && value.trim() !== '';
+function bodyObject(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new AppError('Request body must be a JSON object.');
+  return body;
+}
+
+function answerText(response, max, allowBlank = false) {
+  if (typeof response !== 'string' || (!allowBlank && !response.trim()) || response.length > max) {
+    throw new AppError(`response must be ${allowBlank ? '' : 'a non-empty '}string of up to ${max} characters.`);
+  }
+}
 
 function canView(run, user) {
   return !run.private || (user && run.userId === user.id);
@@ -18,131 +29,131 @@ function canView(run, user) {
 
 function checkPrivacy(wantsPrivate, user) {
   if (!wantsPrivate) return false;
-  if (!isPremium(user)) throw new ValidationError('Private results are a Premium feature.');
+  if (!isPremium(user)) throw new AppError('Private results are a Premium feature.', 403, 'PREMIUM_REQUIRED');
   return true;
 }
 
-function csvCell(value) {
-  const text = value == null ? '' : String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function runToCsv(run) {
-  const header = ['Question type', 'Specialty', 'Question', 'Chatbot answer', 'Score', 'Verdict', 'Explanation', 'Checks not met'];
-  const rows = run.results.map((r) => [
-    r.kind === 'custom' ? 'Own question (screened)' : 'Benchmark',
-    r.specialty,
-    r.prompt,
-    r.response,
-    r.score,
-    r.verdict,
-    r.explanation,
-    r.checks.filter((c) => !c.passed).map((c) => c.reason).join(' | '),
-  ]);
-  return [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
-}
-
-export function runRoutes({ evaluations }) {
+export function runRoutes({ evaluations, config }) {
   const router = Router();
+
+  // Find a test the requester may see; private tests look like they don't exist to anyone else.
+  function visibleRun(req) {
+    const run = evaluations.getRun(req.params.id);
+    if (!run || !canView(run, req.user)) throw new AppError('Run not found.', 404, 'NOT_FOUND');
+    return run;
+  }
+
+  // Stateless scoring is useful for integrations; manual runs persist answers and reports.
+  router.post('/evaluate', (req, res) => {
+    const { caseId, response } = bodyObject(req.body);
+    const c = getTestCase(caseId);
+    if (!c) throw new AppError('Unknown question.');
+    answerText(response, config.maxAnswerLength);
+    res.json({ caseId, specialty: c.specialty, ...scoreResponse(c, response), benchmark: BENCHMARK });
+  });
 
   // Run the questions against a model configured on the server.
   router.post('/runs', (req, res) => {
-    const { modelId, packId, specialty, caseIds, private: wantsPrivate } = req.body ?? {};
-    const model = getModel(modelId);
-    if (!model) return res.status(400).json({ error: `Unknown model: ${modelId}` });
-    if (specialty && !SPECIALTIES.some((s) => s.id === specialty)) {
-      return res.status(400).json({ error: `Unknown specialty: ${specialty}` });
-    }
-    if (packId && !getPack(packId)) return res.status(400).json({ error: `Unknown question pack: ${packId}` });
+    const { modelId, packId, specialty, caseIds, private: wantsPrivate } = bodyObject(req.body);
+    const model = typeof modelId === 'string' && getModel(modelId);
+    if (!model) throw new AppError('Unknown model. Choose a model from /api/models.');
+    if (packId !== undefined && !getPack(packId)) throw new AppError(`Unknown question pack: ${packId}`);
     const isPrivate = checkPrivacy(wantsPrivate, req.user);
-
-    let ids = packId ? getPack(packId).caseIds : TEST_CASES.map((c) => c.id);
-    if (specialty) ids = ids.filter((id) => getTestCase(id).specialty === specialty);
-    if (Array.isArray(caseIds) && caseIds.length) ids = ids.filter((id) => caseIds.includes(id));
-    if (ids.length === 0) return res.status(400).json({ error: 'No questions match that selection.' });
-
-    const items = evaluations.buildItems({ standard: ids.map((caseId) => ({ caseId })) });
-    const { run } = evaluations.startRun(model, items, { userId: req.user?.id ?? null, isPrivate });
+    const selection = packId ? { specialty, caseIds: caseIds ?? getPack(packId).caseIds } : { specialty, caseIds };
+    if (packId && specialty) selection.caseIds = selection.caseIds.filter((id) => getTestCase(id)?.specialty === specialty);
+    const { run } = evaluations.startRun(model, selection, { userId: req.user?.id ?? null, isPrivate });
     res.status(202).json(run);
   });
 
   // Score answers copied from the tester's own chatbot.
-  // Body: { botName, answers: [{ caseId, values?, response }], customQuestions: [{ question, response }], private? }
+  // Body: { botName, answers: [{ caseId, values?, response }], customQuestions?: [{ question, response }], private? }
   router.post('/runs/manual', async (req, res) => {
-    const { botName, answers = [], customQuestions = [], private: wantsPrivate } = req.body ?? {};
+    const { botName, answers = [], customQuestions = [], private: wantsPrivate } = bodyObject(req.body);
     const name = typeof botName === 'string' ? botName.trim() : '';
-    if (!name || name.length > 80) {
-      return res.status(400).json({ error: 'Give your chatbot a name (up to 80 characters).' });
+    if (!name || name.length > 80) throw new AppError('Give your chatbot a name (up to 80 characters).');
+    if (!Array.isArray(answers) || answers.length > TEST_CASES.length) {
+      throw new AppError(`answers must be a list of up to ${TEST_CASES.length} entries.`);
     }
-    if (!Array.isArray(answers) || !Array.isArray(customQuestions)) {
-      return res.status(400).json({ error: 'answers and customQuestions must be lists.' });
-    }
-
-    const standard = answers.filter((a) => filled(a?.response));
-    for (const answer of standard) {
-      if (!getTestCase(answer.caseId)) return res.status(400).json({ error: `Unknown question: ${answer.caseId}` });
-      if (answer.response.length > MAX_ANSWER_LENGTH) {
-        return res.status(400).json({ error: `Answers must be under ${MAX_ANSWER_LENGTH} characters.` });
+    if (!Array.isArray(customQuestions)) throw new AppError('customQuestions must be a list.');
+    for (const a of answers) {
+      bodyObject(a);
+      if (!getTestCase(a.caseId)) throw new AppError(`Unknown question: ${a.caseId}`);
+      answerText(a.response, config.maxAnswerLength, true);
+      if (a.values !== undefined && (typeof a.values !== 'object' || a.values === null || Array.isArray(a.values))) {
+        throw new AppError('values must be an object of question details.');
       }
     }
-    if (new Set(standard.map((a) => a.caseId)).size !== standard.length) {
-      return res.status(400).json({ error: 'Each question can only be answered once.' });
-    }
+    if (new Set(answers.map((a) => a.caseId)).size !== answers.length) throw new AppError('Each question can only be answered once.');
 
-    const custom = customQuestions.filter((q) => filled(q?.question) && filled(q?.response));
     const limit = isPremium(req.user) ? CUSTOM_QUESTION_LIMIT.premium : CUSTOM_QUESTION_LIMIT.free;
-    if (custom.length > limit) {
-      return res.status(400).json({
-        error: isPremium(req.user)
-          ? `You can add up to ${limit} of your own questions per test.`
-          : `Free tests can include ${limit} of your own questions. Upgrade to Premium for up to ${CUSTOM_QUESTION_LIMIT.premium}.`,
-      });
-    }
-    for (const q of custom) {
-      if (q.question.length > MAX_QUESTION_LENGTH || q.response.length > MAX_ANSWER_LENGTH) {
-        return res.status(400).json({ error: 'One of your own questions or answers is too long.' });
+    const custom = [];
+    for (const q of customQuestions) {
+      bodyObject(q);
+      if (typeof q.question !== 'string' || q.question.length > MAX_QUESTION_LENGTH) {
+        throw new AppError(`Own questions must be text of up to ${MAX_QUESTION_LENGTH} characters.`);
       }
+      answerText(q.response ?? '', config.maxAnswerLength, true);
+      if (q.question.trim() && q.response?.trim()) custom.push({ question: q.question.trim(), response: q.response });
     }
-    if (standard.length + custom.length === 0) {
-      return res.status(400).json({ error: 'Paste at least one answer.' });
+    if (custom.length > limit) {
+      throw new AppError(isPremium(req.user)
+        ? `You can add up to ${limit} of your own questions per test.`
+        : `Free tests can include ${limit} of your own questions. Upgrade to Premium for up to ${CUSTOM_QUESTION_LIMIT.premium}.`);
     }
+
+    const filled = answers.filter((a) => a.response.trim());
+    if (!filled.length && !custom.length) throw new AppError('Paste at least one answer.');
     const isPrivate = checkPrivacy(wantsPrivate, req.user);
 
-    const run = await evaluations.scoreManualAnswers({
+    res.status(201).json(await evaluations.scoreManualAnswers({
       botName: name,
-      answers: standard.map(({ caseId, values, response }) => ({ caseId, values, response })),
-      customQuestions: custom.map(({ question, response }) => ({ question: question.trim(), response })),
+      answers: filled.map(({ caseId, values, response }) => ({ caseId, values, response })),
+      customQuestions: custom,
       userId: req.user?.id ?? null,
       isPrivate,
-    });
-    res.status(201).json(run);
+    }));
+  });
+
+  router.post('/runs/compare', (req, res) => {
+    const { runIds } = bodyObject(req.body);
+    if (!Array.isArray(runIds) || runIds.length < 2 || runIds.length > 5 || runIds.some((id) => typeof id !== 'string') || new Set(runIds).size !== runIds.length) {
+      throw new AppError('runIds must contain 2 to 5 distinct run IDs.');
+    }
+    for (const id of runIds) {
+      const run = evaluations.getRun(id);
+      if (run && !canView(run, req.user)) throw new AppError('One or more runs were not found.', 404, 'NOT_FOUND');
+    }
+    res.json(evaluations.compare(runIds));
   });
 
   router.get('/runs', (req, res) => {
-    res.json(evaluations.listRuns());
+    const limit = req.query.limit === undefined ? 50 : Number(req.query.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new AppError('limit must be an integer from 1 to 100.');
+    res.json(evaluations.listRuns(limit));
   });
 
-  router.get('/runs/:id', (req, res) => {
-    const run = evaluations.getRun(req.params.id);
-    // Private tests look like they don't exist to anyone but their owner.
-    if (!run || !canView(run, req.user)) return res.status(404).json({ error: 'Test not found.' });
+  // Full report for integrations: JSON, or CSV with one row per check.
+  router.get('/runs/:id/export', (req, res) => {
+    const format = req.query.format ?? 'json';
+    if (!['json', 'csv'].includes(format)) throw new AppError('format must be json or csv.');
+    const run = visibleRun(req);
+    res.attachment(`al-rahm-${encodeURIComponent(run.id)}.${format}`);
+    if (format === 'csv') return res.type('text/csv').send(exportCsv(run));
     res.json(run);
   });
 
+  // Spreadsheet-friendly summary (one row per question): the in-app Premium download.
   router.get('/runs/:id/export.csv', requireUser, (req, res) => {
-    if (!isPremium(req.user)) return res.status(403).json({ error: 'Exporting results is a Premium feature.' });
-    const run = evaluations.getRun(req.params.id);
-    if (!run || !canView(run, req.user)) return res.status(404).json({ error: 'Test not found.' });
+    if (!isPremium(req.user)) throw new AppError('Exporting results is a Premium feature.', 403, 'PREMIUM_REQUIRED');
+    const run = visibleRun(req);
     const filename = `al-rahm-${run.modelName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${run.id.slice(0, 8)}.csv`;
-    res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', `attachment; filename="${filename}"`);
-    // BOM so Excel opens the UTF-8 file with the right characters.
-    res.send(`﻿${runToCsv(run)}`);
+    res.attachment(filename).type('text/csv; charset=utf-8').send(exportSummaryCsv(run));
   });
 
-  router.get('/leaderboard', (req, res) => {
-    res.json(evaluations.leaderboard());
-  });
+  router.get('/runs/:id', (req, res) => res.json(visibleRun(req)));
+
+  router.get('/leaderboard', (req, res) => res.json(evaluations.leaderboard()));
+  router.get('/dashboard', (req, res) => res.json(evaluations.dashboard()));
 
   return router;
 }

@@ -1,12 +1,14 @@
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { SESSION_DAYS } from '../config.js';
+import { AppError } from '../errors.js';
 import { formatPhone, normaliseKenyanPhone } from '../lib/phone.js';
 
 const scrypt = promisify(scryptCb);
 const KEY_LENGTH = 64;
 
-export class ValidationError extends Error {}
+// A 400 error whose message is safe to show to the user.
+export class ValidationError extends AppError {}
 
 async function hashPassword(password) {
   const salt = randomBytes(16);

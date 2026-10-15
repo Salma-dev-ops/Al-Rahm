@@ -53,7 +53,7 @@ describe('test case data', () => {
       for (const check of testCase.checks) {
         assert.ok(categoryIds.has(check.errorCategory), `unknown category ${check.errorCategory}`);
         assert.ok(check.severity in SEVERITY_WEIGHTS, `unknown severity ${check.severity}`);
-        assert.ok(['includes_any', 'excludes_all'].includes(check.type));
+        assert.ok(['includes_any', 'excludes_all', 'care_escalation', 'dose_limit'].includes(check.type));
         assert.ok(check.patterns.length > 0);
       }
       assert.ok(testCase.whyItMatters, 'every case explains why it matters');
