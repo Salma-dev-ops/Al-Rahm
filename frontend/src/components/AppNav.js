@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BlossomLogo, HomeIcon, MethodIcon, QuestionsIcon, ResultsIcon, TestIcon } from "./icons";
+import { useSyncExternalStore } from "react";
+import { BlossomLogo, HomeIcon, MethodIcon, QuestionsIcon, ResultsIcon, TestIcon, UserIcon } from "./icons";
+import { ThemeToggle } from "./ThemeToggle";
+import { useAuth } from "./AuthProvider";
 
 export const NAV_ITEMS = [
   { href: "/", label: "Home", icon: HomeIcon },
@@ -17,6 +20,44 @@ function isActive(pathname, href) {
   // A run's page belongs to the Results section.
   if (href === "/results" && pathname?.startsWith("/runs/")) return true;
   return pathname?.startsWith(href);
+}
+
+/** "Log in", or the user's initial (with a Premium badge) linking to their account. */
+const noSubscription = () => () => {};
+
+function AccountButton() {
+  const { user, loading } = useAuth() ?? {};
+  // The nav hydrates inside its own Suspense boundary, often after the login check has
+  // finished. Render the same placeholder as the server until hydration is done, so the
+  // HTML matches; React then re-renders with the real state.
+  const hydrated = useSyncExternalStore(noSubscription, () => true, () => false);
+  if (!hydrated || loading) return <span className="h-9 w-9" aria-hidden />;
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="inline-flex h-9 items-center gap-1.5 rounded-full bg-accent px-3 text-sm font-medium text-accent-ink"
+      >
+        <UserIcon className="h-4 w-4" />
+        Log in
+      </Link>
+    );
+  }
+  return (
+    <Link
+      href="/account"
+      aria-label={`Your account${user.isPremium ? " (Premium)" : ""}`}
+      title="Your account"
+      className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-ink"
+    >
+      {user.name.trim().charAt(0).toUpperCase()}
+      {user.isPremium && (
+        <span className="absolute -right-1 -bottom-1 rounded-full border-2 border-surface bg-warning px-1 text-[9px] font-bold leading-3 text-black">
+          ★
+        </span>
+      )}
+    </Link>
+  );
 }
 
 function Brand() {
@@ -56,12 +97,10 @@ export function NavBar({ pathname }) {
               );
             })}
           </nav>
-          <Link
-            href="/test"
-            className="ml-auto rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink md:hidden"
-          >
-            Test a bot
-          </Link>
+          <div className="ml-auto flex items-center gap-2 md:ml-0">
+            <ThemeToggle />
+            <AccountButton />
+          </div>
         </div>
       </header>
 

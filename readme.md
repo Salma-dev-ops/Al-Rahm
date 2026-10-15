@@ -41,14 +41,17 @@ An evaluation matrix and dashboard designed to systematically test, score, and s
 ```text
 Al-Rahm/
 ├── backend/                  Node.js + Express API (port 4000)
-│   ├── index.js              Server entry point
-│   ├── src/data/             Specialties, error categories and the test cases + rubrics
-│   ├── src/scoring/          Rubric scoring engine and dashboard metrics
-│   ├── src/models/           Model adapters: demo models, Claude, OpenAI-compatible
-│   ├── src/services/         Runs evaluations and stores results (SQLite)
+│   ├── index.js              Server entry point (+ hourly Premium expiry reminders)
+│   ├── src/data/             Questions + rubrics, adjustable details, curated packs
+│   ├── src/scoring/          Rubric scoring, red-flag screen for own questions, metrics
+│   ├── src/models/           Model adapters: example bots, Claude, OpenAI-compatible
+│   ├── src/integrations/     M-Pesa Daraja (STK Push) and Africa's Talking SMS
+│   ├── src/services/         Tests, accounts, payments and notifications (SQLite)
+│   ├── src/routes/           API routes
 │   └── test/                 Automated tests (npm test)
 ├── frontend/                 Next.js + Tailwind web app, installable on phones (port 3000)
-│   └── src/app/              Home, Test a bot, Results, Questions, Method, and the run report
+│   └── src/app/              Home, Test a bot, Results, Questions, Method, run report,
+│                             Log in, Account and Premium
 └── readme.md
 ```
 
@@ -73,9 +76,34 @@ npm run dev               # http://localhost:3000
 ```
 
 Three offline example chatbots work with no API keys, so the app can be tried immediately.
-Any chatbot can also be tested with no setup: copy the questions from **Test a bot**, ask your chatbot,
-and paste its answers back in to get a score with a reason for every check.
+Any chatbot can also be tested with no setup: browse questions on the Home page (adjusting details such as
+weeks pregnant or age), or pick a curated pack on **Test a bot**. Ask your chatbot each question, enter its
+answers, and get a score with an explanation for every check. You can add your own questions too; these
+are screened for red flags rather than scored, because they have no clinician-written checks.
 To evaluate real models, set `ANTHROPIC_API_KEY` and/or the `OPENAI_COMPATIBLE_*` variables in `backend/.env`.
+
+### Accounts, M-Pesa Premium and SMS
+
+Accounts are optional: anyone can test a chatbot. A free account keeps a history of your tests.
+Premium is a prepaid pass (default KES 500 for 30 days, set by `PREMIUM_PRICE_KES` / `PREMIUM_DAYS`)
+paid with an M-Pesa STK Push. It adds private results, CSV export, up to 20 own questions per test and
+SMS alerts. Safety findings themselves are never paywalled.
+
+**Mock mode (default).** With no keys in `backend/.env`, payments and SMS run in mock mode: the payment
+"succeeds" a few seconds after the PIN prompt, and SMS messages are recorded (visible on the Account
+page) instead of sent. The startup log says which mode is active.
+
+**M-Pesa sandbox.** Create an app at [developer.safaricom.co.ke](https://developer.safaricom.co.ke), then set
+`MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE` (174379 in the sandbox), `MPESA_PASSKEY`,
+`MPESA_CALLBACK_SECRET` (any long random string) and `MPESA_CALLBACK_URL`. Safaricom must reach the
+callback over public HTTPS, so locally run a tunnel such as `ngrok http 4000` and use
+`https://<your-tunnel>/api/payments/mpesa/callback/<MPESA_CALLBACK_SECRET>`.
+If a callback is slow or lost, the payment page asks Daraja for the result itself, so it never needs a
+manual refresh. A payment only unlocks Premium once, even if Safaricom calls back several times.
+
+**Africa's Talking SMS.** Set `AT_USERNAME=sandbox` and your sandbox `AT_API_KEY` to see messages in the
+Africa's Talking simulator; use your live username and key to send real SMS. Messages sent: payment
+receipts, "test finished" alerts (Premium, with alerts on) and a reminder 3 days before Premium ends.
 
 Run the backend tests with `npm test` in `backend/`. They check, among other things, that every
 test case's reference answer passes its own rubric.

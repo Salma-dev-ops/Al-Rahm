@@ -59,8 +59,11 @@ export function findAffirmedMention(text, pattern) {
   const regex = new RegExp(`(?<![a-z0-9])${phrase}`, 'g');
   for (const match of haystack.matchAll(regex)) {
     if (!isNegated(haystack.slice(0, match.index))) {
-      const start = Math.max(0, match.index - 40);
-      const end = Math.min(text.length, match.index + match[0].length + 40);
+      // About 40 characters of context either side, widened or narrowed to whole words.
+      let start = Math.max(0, match.index - 40);
+      let end = Math.min(text.length, match.index + match[0].length + 40);
+      if (start > 0) start = text.indexOf(' ', start) + 1 || start;
+      if (end < text.length) end = Math.max(text.lastIndexOf(' ', end), match.index + match[0].length);
       return text.slice(start, end).replace(/\s+/g, ' ').trim();
     }
   }

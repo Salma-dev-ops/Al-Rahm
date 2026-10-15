@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { VerdictBadge } from "@/components/charts";
 import { BlossomLogo } from "@/components/icons";
+import { QuestionExplorer } from "@/components/QuestionExplorer";
 
 // A real example from the benchmark (question "obgyn-preeclampsia"), scored by the same rubric
 // the app uses. Shown statically so the page works even when the API is down.
@@ -24,8 +25,8 @@ const EXAMPLE = {
 };
 
 const STEPS = [
-  { title: "Copy our questions", text: "Real questions women ask about pregnancy, periods, heart health and cancer." },
-  { title: "Ask your chatbot", text: "Paste each question into your bot, then paste its answers back into Al-Rahm." },
+  { title: "Pick a question pack", text: "A quick 5-question check, pregnancy emergencies, cancer warning signs, or all of them." },
+  { title: "Ask your chatbot", text: "Copy each question into your bot, then type or paste its answers back into Al-Rahm." },
   { title: "Get a score, with reasons", text: "See which answers are unsafe, why, and what a safe answer needs to say." },
 ];
 
@@ -100,6 +101,16 @@ export default function HomePage() {
           >
             See how models score
           </Link>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold text-ink">Try a question</h2>
+        <p className="mt-1 text-sm text-ink-2">
+          Browse common questions women ask, adjust the details, or write your own. Then test how your chatbot answers.
+        </p>
+        <div className="mt-4">
+          <QuestionExplorer />
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-import { getTestCase } from '../data/testCases.js';
+import { getTestCase, renderTestCase } from '../data/testCases.js';
 
 // Offline example chatbots, so the app can be tried without any API keys.
 // They return canned answers instead of calling a real AI model.
@@ -12,8 +12,8 @@ function demoModel({ id, name, description, answerFor }) {
     name,
     provider: 'demo',
     description,
-    async generate(prompt, { caseId }) {
-      return { text: answerFor(getTestCase(caseId)), refused: false };
+    async generate(prompt, { caseId, values }) {
+      return { text: answerFor(renderTestCase(getTestCase(caseId), values)), refused: false };
     },
   };
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ERROR_CATEGORIES, SEVERITY_WEIGHTS, SPECIALTIES } from '../src/data/taxonomy.js';
-import { TEST_CASES } from '../src/data/testCases.js';
+import { renderTestCase, TEST_CASES } from '../src/data/testCases.js';
 import { findAffirmedMention, scoreResponse } from '../src/scoring/rubric.js';
 
 describe('findAffirmedMention', () => {
@@ -60,10 +60,17 @@ describe('test case data', () => {
       assert.ok(testCase.sources?.length > 0, 'every case cites at least one guideline');
     });
 
-    it(`${testCase.id}: the reference answer passes every check`, () => {
-      const result = scoreResponse(testCase, testCase.referenceAnswer);
-      const failed = result.checks.filter((c) => !c.passed).map((c) => `${c.id} (${c.matchedPattern ?? 'no match'})`);
-      assert.deepEqual(failed, []);
+    it(`${testCase.id}: the reference answer passes every check, at every allowed detail`, () => {
+      // Check the defaults and both ends of every adjustable detail (weeks pregnant, age, ...).
+      const settings = [{}];
+      for (const v of testCase.variables ?? []) settings.push({ [v.key]: v.min }, { [v.key]: v.max });
+      for (const values of settings) {
+        const rendered = renderTestCase(testCase, values);
+        assert.doesNotMatch(rendered.prompt + rendered.title + rendered.referenceAnswer, /\{\w+\}/, 'unfilled placeholder');
+        const failed = scoreResponse(testCase, rendered.referenceAnswer).checks.filter((c) => !c.passed);
+        assert.deepEqual(failed.map((c) => c.id), [], `failed with ${JSON.stringify(values)}`);
+      }
+      const result = scoreResponse(testCase, renderTestCase(testCase).referenceAnswer);
       assert.equal(result.score, 100);
       assert.equal(result.verdict, 'pass');
     });
@@ -103,7 +110,7 @@ describe('scoreResponse', () => {
   });
 
   it('explains a passing answer', () => {
-    assert.equal(scoreResponse(preeclampsia, preeclampsia.referenceAnswer).explanation, 'Pass: every check was met.');
+    assert.equal(scoreResponse(preeclampsia, renderTestCase(preeclampsia).referenceAnswer).explanation, 'Pass: every check was met.');
   });
 
   it('scores an empty answer (e.g. a refusal) as unsafe for an emergency', () => {

@@ -53,8 +53,9 @@ describe('API', () => {
   });
 
   it('scores the reference model at 100 and the OB-GYN blind spot model low on OB-GYN', async () => {
-    const reference = evaluations.startRun(getModel('demo:reference'));
-    const blindSpot = evaluations.startRun(getModel('demo:obgyn-blind-spot'));
+    const all = evaluations.buildItems({ standard: TEST_CASES.map((c) => ({ caseId: c.id })) });
+    const reference = evaluations.startRun(getModel('demo:reference'), all);
+    const blindSpot = evaluations.startRun(getModel('demo:obgyn-blind-spot'), all);
     await Promise.all([reference.done, blindSpot.done]);
 
     const referenceRun = await (await fetch(`${baseUrl}/runs/${reference.run.id}`)).json();
