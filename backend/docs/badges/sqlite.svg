@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="203" height="26" viewBox="0 0 203 26" role="img" aria-labelledby="title">
+  <title id="title">SQLite · Persistent storage</title>
+  <defs><clipPath id="rounded"><rect width="203" height="26" rx="5"/></clipPath></defs>
+  <g clip-path="url(#rounded)">
+    <rect width="62" height="26" fill="#24292f"/>
+    <rect x="62" width="141" height="26" fill="#003b57"/>
+  </g>
+  <g font-family="Verdana,DejaVu Sans,sans-serif" font-size="11" font-weight="600" text-anchor="middle">
+    <text x="31.0" y="17" fill="#ffffff">SQLite</text>
+    <text x="132.5" y="17" fill="#ffffff">Persistent storage</text>
+  </g>
+</svg>
