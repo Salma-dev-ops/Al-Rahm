@@ -6,7 +6,7 @@
 
 1. Salma Adam
 2. Aisha Gojo
-3. Aaliya Mnavu
+3. Aaliyah Mnavu
 4. Rene Bosire
 
 ## 1. Problem Statement & Target Audience
@@ -47,8 +47,8 @@ Al-Rahm/
 │   ├── src/models/           Model adapters: demo models, Claude, OpenAI-compatible
 │   ├── src/services/         Runs evaluations and stores results (SQLite)
 │   └── test/                 Automated tests (npm test)
-├── frontend/                 Next.js + Tailwind dashboard (port 3000)
-│   └── src/app/              Dashboard, live run view, test case browser
+├── frontend/                 Next.js + Tailwind web app, installable on phones (port 3000)
+│   └── src/app/              Home, Test a bot, Results, Questions, Method, and the run report
 └── readme.md
 ```
 
@@ -72,7 +72,9 @@ npm install
 npm run dev               # http://localhost:3000
 ```
 
-Three offline demo models work with no API keys, so the dashboard can be tried immediately.
+Three offline example chatbots work with no API keys, so the app can be tried immediately.
+Any chatbot can also be tested with no setup: copy the questions from **Test a bot**, ask your chatbot,
+and paste its answers back in to get a score with a reason for every check.
 To evaluate real models, set `ANTHROPIC_API_KEY` and/or the `OPENAI_COMPATIBLE_*` variables in `backend/.env`.
 
 Run the backend tests with `npm test` in `backend/`. They check, among other things, that every

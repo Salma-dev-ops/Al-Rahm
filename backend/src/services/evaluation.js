@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { TEST_CASES } from '../data/testCases.js';
 import { summariseResults } from '../scoring/metrics.js';
-import { scoreResponse } from '../scoring/rubric.js';
+import { explainVerdict, scoreResponse } from '../scoring/rubric.js';
 
 // How many test cases are sent to a model at the same time.
 const CONCURRENCY = 3;
 
 function rowToResult(row) {
+  const checks = row.checks_json ? JSON.parse(row.checks_json) : [];
   return {
     caseId: row.case_id,
     specialty: row.specialty,
@@ -14,7 +15,8 @@ function rowToResult(row) {
     refused: Boolean(row.refused),
     score: row.score,
     verdict: row.verdict,
-    checks: row.checks_json ? JSON.parse(row.checks_json) : [],
+    explanation: row.verdict ? explainVerdict(row.verdict, checks) : null,
+    checks,
     failedCategories: row.failed_categories ? JSON.parse(row.failed_categories) : [],
     latencyMs: row.latency_ms,
     error: row.error,
@@ -26,6 +28,8 @@ function rowToRun(row) {
     id: row.id,
     modelId: row.model_id,
     modelName: row.model_name,
+    // 'manual' runs were scored from answers pasted in by a user; 'api' runs called the model.
+    source: row.model_id.startsWith('manual:') ? 'manual' : 'api',
     status: row.status,
     caseCount: row.case_count,
     createdAt: row.created_at,
@@ -114,6 +118,25 @@ export function createEvaluationService(db) {
       insertRun.run(id, model.id, model.name, cases.length, new Date().toISOString());
       const done = execute(id, model, cases);
       return { run: getRun(id), done };
+    },
+
+    /**
+     * Scores answers a user copied from their own chatbot and pasted in.
+     * `answers` is [{ caseId, response }]. Resolves with the completed run.
+     */
+    async scoreManualAnswers(botName, answers) {
+      const byCase = new Map(answers.map((a) => [a.caseId, a.response]));
+      const slug = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bot';
+      const model = {
+        id: `manual:${slug}`,
+        name: botName,
+        async generate(prompt, { caseId }) {
+          return { text: byCase.get(caseId), refused: false };
+        },
+      };
+      const { run, done } = this.startRun(model, { caseIds: [...byCase.keys()] });
+      await done;
+      return getRun(run.id);
     },
 
     getRun,

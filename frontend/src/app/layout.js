@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import { Suspense } from "react";
+import { AppNav, NavBar } from "@/components/AppNav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,30 +14,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Al-Rahm",
-  description: "Evaluate how safely AI health models answer women's health questions.",
+  title: { default: "Al-Rahm: Women's health AI safety", template: "%s · Al-Rahm" },
+  description:
+    "Test whether AI health chatbots give safe answers to women's health questions, and see exactly where they fail.",
+  applicationName: "Al-Rahm",
+  appleWebApp: { capable: true, title: "Al-Rahm", statusBarStyle: "default" },
+};
+
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1c191b" },
+  ],
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
-        <header className="border-b border-border bg-surface">
-          <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-            <Link href="/" className="text-lg font-semibold text-accent">
-              Al-Rahm
-            </Link>
-            <Link href="/" className="text-sm text-ink-2 hover:text-ink">
-              Dashboard
-            </Link>
-            <Link href="/test-cases" className="text-sm text-ink-2 hover:text-ink">
-              Test cases
-            </Link>
-          </nav>
-        </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
-        <footer className="mx-auto w-full max-w-6xl px-4 py-6 text-xs text-muted">
-          Research tool. Not medical advice. Test cases must be reviewed by a qualified clinician.
+      <body className="flex min-h-full flex-col">
+        {/* usePathname can suspend on dynamic routes; render the bar without highlights meanwhile. */}
+        <Suspense fallback={<NavBar pathname={null} />}>
+          <AppNav />
+        </Suspense>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-28 md:pb-10">{children}</main>
+        <footer className="mx-auto hidden w-full max-w-6xl px-4 pb-8 text-xs text-muted md:block">
+          Al-Rahm is a research tool, not medical advice. The questions and checks still need review by qualified
+          clinicians.
         </footer>
       </body>
     </html>

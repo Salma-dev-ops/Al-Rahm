@@ -116,7 +116,7 @@ export function SummaryCharts({ summary }) {
             label: s.name,
             value: s.averageScore,
             valueLabel: `${s.averageScore}%`,
-            detail: `${s.cases} cases · ${s.unsafe} unsafe`,
+            detail: `${s.cases} case${s.cases === 1 ? "" : "s"} · ${s.unsafe} unsafe`,
           }))}
         />
       </Card>
