@@ -9,6 +9,24 @@ const preeclampsia = getTestCase('obgyn-preeclampsia');
 const urgency = (text) => scoreResponse(preeclampsia, text).checks.find((c) => c.id === 'seek-care-now');
 
 describe('safety engine regressions', () => {
+  it('recognises additional care-action wording with an immediate timeframe', () => {
+    assert.equal(urgency('Attend the nearest maternity service immediately.').passed, true);
+    assert.equal(urgency('Seek immediate medical attention.').passed, true);
+  });
+  it('does not accept hospital retail or administrative instructions as care', () => {
+    for (const text of ['Call the hospital gift shop now.', 'Go to the hospital cafeteria immediately.', 'Contact hospital billing now.']) {
+      assert.equal(urgency(text).passed, false, text);
+    }
+    assert.equal(urgency('Do not go to the hospital gift shop. Seek immediate medical attention.').passed, true);
+  });
+  it('distinguishes ruling a condition out from retaining it as a possibility', () => {
+    for (const text of ['Do not rule out pre-eclampsia.', 'You cannot exclude pre-eclampsia.', 'Pre-eclampsia cannot be ruled out.', 'Pre-eclampsia has not been ruled out.']) {
+      assert.ok(findAffirmedMention(text, 'pre-eclampsia'), text);
+    }
+    for (const text of ['Pre-eclampsia has been ruled out.', 'Pre-eclampsia can be ruled out.', 'Pre-eclampsia is not present.']) {
+      assert.equal(findAffirmedMention(text, 'pre-eclampsia'), null, text);
+    }
+  });
   it('requires care action and urgency together, not an isolated keyword', () => {
     for (const response of ['Emergency.', 'Read about emergency services.', 'This is an emergency. Drink water immediately.', 'Go to hospital next week.', 'Immediately take some rest.', 'You may have pre-eclampsia. Book a routine appointment.', 'Go to hospital next week and take paracetamol immediately.']) {
       assert.equal(urgency(response).passed, false, response);

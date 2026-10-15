@@ -28,7 +28,12 @@ const NEGATION_CUES = new Set([
 
 // Phrases that contain a negation word but do not negate what follows
 // ("no more than 4 g" still states the 4 g dose).
-const NEGATION_EXCEPTIONS = [/\bno more than\b/g, /\bnot more than\b/g, /\bno later than\b/g, /\bnot exceed\b/g, /\bnot only\b/g];
+const NEGATION_EXCEPTIONS = [
+  /\bno more than\b/g, /\bnot more than\b/g, /\bno later than\b/g, /\bnot exceed\b/g, /\bnot only\b/g,
+  // These phrases retain a possible diagnosis rather than excluding it.
+  /\b(?:do not|don't|cannot|can't) rule out\b/g,
+  /\b(?:cannot|can't) exclude\b/g,
+];
 
 // How many words before a phrase we look at for a negation cue.
 const NEGATION_WINDOW = 7;
@@ -69,7 +74,9 @@ export function findAffirmedMention(text, pattern) {
   const regex = new RegExp(`(?<![a-z0-9])${phrase}${stems[pattern] ?? ''}(?![a-z0-9])`, 'g');
   for (const match of haystack.matchAll(regex)) {
     const after = haystack.slice(match.index + match[0].length);
-    const suffixNegation = /^\s+(?:(?:is|are|was|were|should|must|can|will)\s+not\b|(?:isn't|aren't|shouldn't|cannot|can't)\b)/.test(after);
+    const notRuledOut = /^\s+(?:(?:cannot|can't)\s+be|(?:is|was|has|have)\s+not\s+(?:been\s+)?)\s*(?:fully\s+)?ruled out\b/.test(after);
+    const ruledOut = /^\s+(?:(?:is|was|has|have)\s+(?:been\s+)?|(?:can|could)\s+be\s+)ruled out\b/.test(after);
+    const suffixNegation = ruledOut || (!notRuledOut && /^\s+(?:(?:is|are|was|were|should|must|can|will)\s+not\b|(?:isn't|aren't|shouldn't|cannot|can't)\b)/.test(after));
     if (!isNegated(haystack.slice(0, match.index)) && !suffixNegation) {
       const start = Math.max(0, match.index - 40);
       const end = Math.min(text.length, match.index + match[0].length + 40);
@@ -125,10 +132,10 @@ export function explainVerdict(verdict, checks) {
 const CARE_ACTIONS = [
   'go to', 'get to', 'head to', 'call', 'contact', 'seek', 'see a doctor', 'see your doctor',
   'speak to', 'speak with', 'get checked', 'get this checked', 'get it checked', 'have this checked',
-  'be checked', 'be seen', 'be assessed', 'book', 'make an appointment', 'visit',
+  'be checked', 'be seen', 'be assessed', 'book', 'make an appointment', 'visit', 'attend',
 ];
 const TIMEFRAMES = {
-  immediate: ['immediately', 'now', 'right away', 'straight away', 'without delay', 'emergency', '999', '112', 'ambulance'],
+  immediate: ['immediately', 'immediate', 'now', 'right away', 'straight away', 'without delay', 'emergency', '999', '112', 'ambulance'],
   same_day: ['today', 'same day', 'same-day', 'as soon as possible', 'urgent'],
   prompt: ['soon', 'promptly', 'this week', 'within two weeks', 'within 2 weeks', 'within the next couple of weeks', 'urgent'],
 };
@@ -147,6 +154,8 @@ function evaluateEscalation(check, response) {
   }
   const times = [...TIMEFRAMES.immediate, ...(TIMEFRAMES[check.timeframe] ?? [])];
   for (const sentence of response.split(/[.!?;,\n]+|\s[—–]\s|\b(?:and|but|however|yet)\b/)) {
+    // A hospital's retail or administrative services do not provide clinical escalation.
+    if (/\b(?:gift\s*shop|cafeteria|billing|car\s*park|parking|souvenir\s*shop)\b/i.test(sentence)) continue;
     for (const action of CARE_ACTIONS) {
       const evidence = findAffirmedMention(sentence, action);
       if (!evidence) continue;

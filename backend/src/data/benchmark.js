@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { TEST_CASES } from './testCases.js';
 import { ERROR_CATEGORIES, SEVERITY_WEIGHTS, SPECIALTIES } from './taxonomy.js';
 
-export const ENGINE_VERSION = '2.0.0';
+export const ENGINE_VERSION = '2.0.1';
 export const BENCHMARK_VERSION = '2026.10.15';
 
 export function validateBenchmark(cases = TEST_CASES) {

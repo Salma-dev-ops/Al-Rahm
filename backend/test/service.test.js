@@ -79,7 +79,7 @@ it('persists reports with rubric snapshots and recovers interrupted runs on rest
     const report = restored.getRun(run.id);
     assert.equal(report.status, 'completed');
     assert.equal(report.summary.averageScore, 100);
-    assert.equal(report.benchmark.engineVersion, '2.0.0');
+    assert.equal(report.benchmark.engineVersion, '2.0.1');
     assert.deepEqual(report.results[0].testCase, TEST_CASES[0]);
     assert.equal(restored.getRun('interrupted').status, 'failed');
     assert.match(restored.getRun('interrupted').error, /restarted/);
